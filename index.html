@@ -84,37 +84,49 @@
   <div class="gallery" id="gallery"></div>
 
   <script>
-    function formatDate(iso) {
-      var d = new Date(iso);
+    function formatDate(value) {
+      if (!value) return '';
+      var d = new Date(value);
+      if (isNaN(d.getTime())) return value;
       return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
     }
 
     function createCard(entry) {
       var card = document.createElement('div');
       card.className = 'card';
+      var prompt = entry.prompt || '';
       card.innerHTML =
-        '<img src="' + entry.url + '" alt="' + entry.prompt.replace(/"/g, '&quot;') + '" loading="lazy">' +
+        '<img src="' + entry.url + '" alt="' + prompt.replace(/"/g, '&quot;') + '" loading="lazy">' +
         '<div class="card-body">' +
-          '<p class="prompt">' + entry.prompt + '</p>' +
+          '<p class="prompt">' + prompt + '</p>' +
           '<p class="date">' + formatDate(entry.timestamp) + '</p>' +
         '</div>';
       return card;
     }
 
-    fetch('images.json')
+    // Reads the Google Sheet as JSON via opensheet. Sheet must be shared "Anyone with the link".
+    var SHEET_URL = 'https://opensheet.elk.sh/1AYhCtDmx0Sa6ky2TUIxlAwg8NHjMnvBGHIUxrndA350/image-gallery';
+
+    fetch(SHEET_URL)
       .then(function (res) {
         if (!res.ok) throw new Error(res.status);
         return res.json();
       })
-      .then(function (images) {
+      .then(function (rows) {
         var gallery = document.getElementById('gallery');
+        // Keep rows that have an image URL, newest first.
+        var images = rows.filter(function (r) { return r && r.url; }).reverse();
+        if (!images.length) {
+          gallery.innerHTML = '<p class="error">No images yet. Submit a prompt to get started.</p>';
+          return;
+        }
         images.forEach(function (entry) {
           gallery.appendChild(createCard(entry));
         });
       })
       .catch(function () {
         document.getElementById('gallery').innerHTML =
-          '<p class="error">Could not load images.json</p>';
+          '<p class="error">Could not load the gallery feed.</p>';
       });
   </script>
 </body>
